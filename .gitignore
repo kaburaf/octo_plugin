@@ -1,0 +1,6 @@
+browser.json
+.env
+__pycache__/
+*.pyc
+secrets/
+.DS_Store

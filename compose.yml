@@ -1,0 +1,53 @@
+# Standalone server deployment. The current installation is managed by /opt/arrstack/docker-compose.yml.
+services:
+  octo-playlists:
+    build: .
+    image: octo-playlists:3.0.0
+    container_name: octo-playlists
+    restart: unless-stopped
+    init: true
+    environment:
+      OCTO_AUTH_PATH: /data/octo-auth.json
+      OCTO_URL: http://octo:8080
+      OCTO_PUBLIC_URL: http://octo.arr.home
+    volumes:
+      - ${OCTO_DATA_DIR:-/opt/arrstack/config/octo-playlists}:/data
+    ports:
+      - "${HTTP_BIND:-192.168.1.150}:${HTTP_PORT:-8765}:8000"
+    read_only: true
+    tmpfs: [/tmp:size=64m]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3).close()"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    networks: [arr]
+
+  octo-playlists-tunnel:
+    profiles: [tunnel]
+    image: ghcr.io/openai/tunnel-client:v0.0.17
+    container_name: octo-playlists-tunnel
+    restart: unless-stopped
+    init: true
+    depends_on:
+      octo-playlists:
+        condition: service_healthy
+    env_file:
+      - ${TUNNEL_CONFIG_DIR:-/opt/arrstack/config/octo-playlists-tunnel}/tunnel.env
+    environment:
+      MCP_SERVER_URL: http://octo-playlists:8000/mcp
+    command: ["--control-plane.api-key=file:/run/secrets/control_plane_api_key"]
+    volumes:
+      - ${TUNNEL_CONFIG_DIR:-/opt/arrstack/config/octo-playlists-tunnel}/api-key:/run/secrets/control_plane_api_key:ro
+    read_only: true
+    tmpfs: [/tmp:size=64m]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    networks: [arr]
+
+networks:
+  arr:
+    external: true
+    name: arr

@@ -1,0 +1,8 @@
+browser.json
+.env
+.git
+__pycache__/
+*.pyc
+README.md
+tunnel-client/
+secrets/
